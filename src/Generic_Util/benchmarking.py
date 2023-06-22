@@ -12,7 +12,7 @@ from typing import Callable
 
 @contextmanager
 def time_context(name: str = None):
-    '''"with" statement context for timing the execution of the enclosed code block, i.e. `with time_context('Name of code block'): ...` '''
+    '''"with" statement context for timing the execution of the enclosed code block, i.e. ``with time_context('Name of code block'): ...`` '''
     start = time.perf_counter()
     yield # No need to yield anything or for the above to be in a "try" and the below in a customary "finally" since there is no dangling resource
     end = time.perf_counter()
@@ -58,7 +58,7 @@ def time_n(f: Callable, n = 2, *args, **kwargs):
 def compare_implementations(fs_with_shared_args: dict[str, Callable], n = 200, wait = 1, verbose = True,
                             fs_with_own_args: dict[str, tuple[Callable, list, dict]] = None, args: list = None, kwargs: dict = None):
     '''Benchmark multiple implementations of the same function called n times (each with the same args and kwargs), with a break between functions.
-    Recommended later output view if verbose is False: `print(table.to_markdown(index = False))`.
+    Recommended later output view if verbose is False: ``print(table.to_markdown(index = False))``.
     :param fs_with_own_args: alternative to fs_with_shared_args, args and kwargs arguments: meant for additional functions taking different *args and **kwargs.'''
     assert n >= 3
     table = []

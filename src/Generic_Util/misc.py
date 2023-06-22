@@ -15,7 +15,7 @@ def interval_overlap(ab: tuple[float, float], cd: tuple[float, float]) -> float:
 def min_max(xs: Sequence[_a]) -> tuple[_a, _a]:
     '''Mathematically most efficient joint identification of min and max (minimum comparisons = 3n/2 - 2).
         Note:
-            - This function is numba-compilable, e.g. as `njit(nTup(f8,f8)(f8[::1]))(min_max)` (see `Generic_Util.numba.types` for `nTup` shorthand),
+            - This function is numba-compilable, e.g. as ``njit(nTup(f8,f8)(f8[::1]))(min_max)`` (see ``Generic_Util.numba.types`` for ``nTup`` shorthand),
             - If using numpy arrays, min and max are cached for O(1) lookup, and one would imagine this is the used algorithm'''
     if xs[0] > xs[1]: min, max = xs[1], xs[0] # Initialise
     else: min, max = xs[0], xs[1]

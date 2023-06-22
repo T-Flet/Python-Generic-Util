@@ -11,6 +11,8 @@ import operator as op
 import numpy as np
 from numpy.typing import NDArray
 
+from Generic_Util.numba.types import njit, b1, b1A, b1_NP, i8, i8A, f8A, i8A2, i8_NP
+
 from typing import TypeVar, Callable, Union, Sequence, Iterable, Iterator, Generator, Any, Generic, Mapping
 _a = TypeVar('_a')
 _b = TypeVar('_b')
@@ -32,7 +34,7 @@ def deep_flatten(xss_: Iterable) -> Generator:
 
 def deep_extract(xss_: Iterable[Iterable], *key_path) -> Generator:
     '''Given a nested combination of iterables and a path of keys in it, return a deep_flatten-ed list of entries under said path.
-        Note: `deep_extract(xss_, *key_path) == deep_flatten(Generic_Util.operator.get_nested(xss_, *key_path))`'''
+        Note: ``deep_extract(xss_, *key_path) == deep_flatten(Generic_Util.operator.get_nested(xss_, *key_path))``'''
     level = xss_
     for k in key_path: level = level[k]
     return deep_flatten(level)
@@ -64,16 +66,16 @@ def all_combinations(xs: Sequence, min_size = 1, max_size = None) -> list:
 ## Predicate/Property-Based Functions
 
 def partition(p: Callable[[_a], bool], xs: Iterable[_a]) -> tuple[Iterable[_a], Iterable[_a]]:
-    '''Haskell's partition function, partitioning xs by some boolean predicate p: `partition p xs == (filter p xs, filter (not . p) xs)`.'''
+    '''Haskell's partition function, partitioning xs by some boolean predicate p: ``partition p xs == (filter p xs, filter (not . p) xs)``.'''
     acc = ([],[])
     for x in xs: acc[not p(x)].append(x)
     return acc
 
 def group_by(f: Callable[[_a], _b], xs: Iterable[_a]) -> dict[_b, list[_a]]:
     '''Generalisation of partition to any-output key-function.
-        Notes:
-            - 'Retrieval' functions from the operator package are typical f values (`itemgetter(...)`, `attrgetter(...)` or `methodcaller(...)`)
-            - This is NOT Haskell's groupBy function'''
+    Notes:
+        - 'Retrieval' functions from the operator package are typical f values (``itemgetter(...)``, ``attrgetter(...)`` or ``methodcaller(...)``)
+        - This is NOT Haskell's groupBy function'''
     acc = defaultdict(list)
     for x in xs: acc[f(x)].append(x)
     return acc
@@ -82,15 +84,19 @@ def first(c: Callable[[_a], bool], xs: Iterable[_a], default: _a = None) -> _a:
     '''Return the first value in xs which satisfies condition c.'''
     return next((x for x in xs if c(x)), default)
 
+def first_i(c: Callable[[_a], bool], xs: Sequence[_a], default: _a = None) -> _a:
+    '''Return the index of the first value in xs which satisfies condition c.'''
+    return next((i for i in range(len(xs)) if c(xs[i])), default)
+
 def foldq(f: Callable[[_b, _a], _b], g: Callable[[_b, _a, list[_a]], list[_a]], c: Callable[[_a], bool], xs: Sequence[_a], acc: _b) -> tuple[_b, list[_a]]:
     '''
     Fold-like higher-order function where xs is traversed by consumption conditional on c, and remaining xs are updated by g
     (therefore consumption order is not known a priori):
       - the first/next item to be ingested is the first in the remaining xs to fulfil condition c
       - at every x ingestion, the item is removed from (a copy of) xs, and all the remaining ones are potentially modified by function g
-      - this function always returns a tuple of `(acc, remaining_xs)`, unlike the stricter `foldq_`, which raises an exception for leftover xs
+      - this function always returns a tuple of ``(acc, remaining_xs)``, unlike the stricter ``foldq_``, which raises an exception for leftover xs
 
-            Note: `fold(f, xs, acc) == foldq(f, lambda acc, x, xs: xs, lambda x: True, xs, acc)`.
+            Note: ``fold(f, xs, acc) == foldq(f, lambda acc, x, xs: xs, lambda x: True, xs, acc)``.
 
             Sequence of suitable names leading to the current one: consumption_fold, condition_update_fold, cu_fold, q_fold, qfold or foldq
     :param f: 'Traditional' fold function :: acc -> x -> acc
@@ -119,7 +125,7 @@ def foldq(f: Callable[[_b, _a], _b], g: Callable[[_b, _a, list[_a]], list[_a]], 
     return acc, xs
 
 def foldq_(f: Callable[[_b, _a], _b], g: Callable[[_b, _a, list[_a]], list[_a]], c: Callable[[_a], bool], xs: list[_a], acc: _b) -> _b:
-    r'''Stricter version of foldq (see its description for details); only returns the accumulator and raises an exception on leftover xs.
+    '''Stricter version of foldq (see its description for details); only returns the accumulator and raises an exception on leftover xs.
     :raises ValueError on leftover xs'''
     acc, xs = foldq(f, g, c, xs, acc)
     if xs: raise ValueError('No suitable next element found for given condition while elements remain')
@@ -157,7 +163,7 @@ def unique_by(f: Callable[[_a], Any], xs: Iterable[_a]) -> list[_a]:
     return [x for x in xs if (fx := f(x), ) if fx not in seen and not seen.append(fx)] # Neat true-tuple assignment and neat short-circuit 'and' trick
 
 def eq_elems(xs: Iterable[_a], ys: Iterable[_a]) -> bool:
-    '''Equality of iterables by their elements'''
+    '''Equality of iterables by their elements.'''
     cys = list(ys) # make a mutable copy
     try:
         for x in xs: cys.remove(x)
@@ -166,14 +172,83 @@ def eq_elems(xs: Iterable[_a], ys: Iterable[_a]) -> bool:
 
 def diff(xs: Iterable[_a], ys: Iterable[_a]) -> list[_a]:
     '''Difference of iterables.
-        Notes:
-            - not a set difference, so strictly removing as many xs duplicate entries as there are in ys
-            - preserves order in xs'''
+    Notes:
+        - not a set difference, so strictly removing as many xs duplicate entries as there are in ys
+        - preserves order in xs'''
     cxs = list(xs) # make a mutable copy
     try:
         for y in ys: cxs.remove(y)
     except ValueError: pass
     return cxs
+
+@njit([b1A(i8A, i8A), b1A(f8A, f8A)])
+def isin_sorted(xs: NDArray[_a], ys: NDArray[_a]) -> NDArray[b1_NP]:
+    '''Optimised (10x faster) 1D version of np.isin assuming BOTH xs and ys are (ascendingly) sorted arrays of the same type (both int or both float):
+        return a boolean array of the same length as xs indicating whether the corresponding element at that index is present in ys.'''
+    res = np.zeros_like(xs, dtype = b1_NP)
+    i = j = 0
+    while i < len(xs) and j < len(ys):
+        if ys[j] < xs[i]: j += 1 # Let the ys catch-up to the xs
+        elif ys[j] == xs[i]: res[i], i = True, i + 1 # Could increase j here as well, but it would imply assuming ys is strictly increasing
+        else: i += 1 # Let the xs catch up to the ys
+    return res
+
+@njit([i8A2(i8A, i8A, b1), i8A2(f8A, f8A, b1)])
+def isin_sorted_intervals(xs: NDArray[_a], ys: NDArray[_a], strict = True) -> NDArray[i8_NP]:
+    '''Assuming BOTH xs and ys are (ascendingly) sorted arrays of the same type (both int or both float):
+    return a 2D array of the intervals (in terms of indices of xs) of subsequences shared with ys.
+
+    Notes:
+        - The interval-end indices are of the last matching value, not of the next (non-matching) one; run ``res[:,1] += 1`` to switch the behaviour
+        - If the desired intervals are the opposite of the matching ones, call ``complement_intervals(intervals, len(xs), closed_interval_ends = True)``
+
+    :param strict: Whether xs and ys subsequences need to match exactly (e.g. 1223 will not match 123 and vice-versa if strict).
+        If the strictness of the assumption is not respected, the function will produce extra len-1 intervals for each duplicate.'''
+    intervals = np.empty((len(xs) // 2, 2), dtype = i8_NP) # There can be at most half as many intervals as values
+    i = j = k = 0
+    if strict: # xs and ys subsequences need to match exactly
+        while i < len(xs) and j < len(ys):
+            if ys[j] < xs[i]: j += 1 # Let the ys catch-up to the xs
+            if ys[j] == xs[i]:
+                intervals[k, 0] = i
+                while i < len(xs) and j < len(ys) and xs[i] == ys[j]: i, j = i + 1, j + 1
+                intervals[k, 1] = i - 1
+                k += 1
+            else: i += 1 # Let the xs catch up to the ys
+    else: # xs and ys subsequences tolerate non-matching duplicates
+        while i < len(xs) and j < len(ys):
+            if ys[j] < xs[i]: j += 1 # Let the ys catch-up to the xs
+            if ys[j] == xs[i]:
+                intervals[k, 0] = i
+                while i < len(xs) and j < len(ys):
+                    if xs[i] == ys[j]: i, j = i + 1, j + 1 # Guaranteed outcome in first iteration, hence reasoning with -1s below
+                    elif xs[i] == xs[i - 1]: i += 1
+                    elif ys[j] == ys[j - 1]: j += 1
+                    else: break
+                intervals[k, 1] = i - 1
+                k += 1
+            else: i += 1 # Let the xs catch up to the ys
+    return intervals[:k,...] # not k-1 since already ++ed
+
+def complement_intervals(intervals: NDArray[int], true_length: int, closed_interval_ends = True) -> NDArray[int]:
+    '''Invert a series of index intervals (in the form of an (n,2)-array),
+    i.e. return an (m,2)-array of intervals starting after the ends of the given ones and ending before their starts.
+
+    :param true_length: 1 more than the final index for the overall range these intervals are within (which might be ``intervals[-1,1]``); if coming from isin_sorted_intervals, then simply ``len(xs)``
+    :param closed_interval_ends: whether BOTH input and output intervals are (and will be) closed, i.e. their end-index is INCLUDED in the interval, rather than being the first index after it
+    '''
+    if closed_interval_ends: intervals[:, 1] += 1
+
+    # Drop to 1D and toggle the presence of initial and final indices
+    indices = np.reshape(intervals, intervals.size)
+    indices = indices[1:] if indices[0] == 0 else np.insert(indices, 0, 0)
+    indices = indices[:-1] if indices[-1] == true_length else np.append(indices, true_length)
+
+    # Return to 2D (cardinality is even again, as both previous steps changed it by 1)
+    flipped_intervals = np.reshape(indices, (len(indices) // 2, 2))
+
+    if closed_interval_ends: flipped_intervals[:, 1] -= 1
+    return flipped_intervals
 
 
 
