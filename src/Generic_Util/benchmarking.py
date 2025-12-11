@@ -53,8 +53,8 @@ def time_n(f: Callable, n = 2, *args, **kwargs):
 #       - how often the function at each position won (to see whether ordering had a big effect)
 #       - how well each function performed in each sample size
 #       - no need to check how smaller-sample calls were better, as they should be worse than large-sample ones
-#   - MAYBE NOT: option to check whether the outputs of (single) calls to each function are equal
-#       - Difficulty: not all objects are amenable to ==; could ask for the comparison function, but finnicky
+#   - USEFUL BUT NEEDS WARNING: option to check whether the outputs of (single) calls to each function are equal
+#       - Difficulty: not all objects are amenable to ==; could ask for the comparison function, or simply warn about this
 def compare_implementations(fs_with_shared_args: dict[str, Callable], n = 200, wait = 1, verbose = True,
                             fs_with_own_args: dict[str, tuple[Callable, list, dict]] = None, args: list = None, kwargs: dict = None):
     '''Benchmark multiple implementations of the same function called n times (each with the same args and kwargs), with a break between functions.

@@ -6,6 +6,7 @@ element-comparison-based operations, value interspersal, and finally batching.''
 from itertools import chain, combinations, islice
 from functools import reduce
 from collections import defaultdict
+from collections.abc import MutableMapping
 from sortedcontainers import SortedKeyList
 import operator as op
 import numpy as np
@@ -38,6 +39,18 @@ def deep_extract(xss_: Iterable[Iterable], *key_path) -> Generator:
     level = xss_
     for k in key_path: level = level[k]
     return deep_flatten(level)
+
+def unnest(nested_dict, prefix = '', sep = '.'):
+    '''Recursively unnest dictionaries and lists in a dictionary, concatenating keys with sep. All keys are assumed to be strings.
+        Example: {'a': [{'b': 2}, {'c': 3}], 'd': 4, 'e': {'f': 6}} -> {'a.0.b': 2, 'a.1.c': 3, 'd': 4, 'e.f': 6}'''
+    out = {}
+    for k, v in nested_dict.items():
+        new_k = prefix + sep + k if prefix else k
+        if isinstance(v, MutableMapping): out.update(unnest(v, new_k, sep=sep))
+        elif isinstance(v, list):
+            for i, vi in enumerate(v): out.update(unnest(vi, new_k + sep + str(i), sep=sep))
+        else: out[new_k] = v
+    return out
 
 
 
@@ -273,7 +286,10 @@ def intersperse_val(xs: Sequence[_a], y: _a, n: int, prepend = False, append = F
 ## Batching functions
 
 def batch_iter(n: int, xs: Iterable[_a]) -> Generator[_a, None, None]:
-    '''Batch an iterable in batches of size n (possibly except the last). If len(xs) is knowable use batch_seq instead.'''
+    '''*Soft deprecation* for Python>=3.12 since itertools now contains batched(iterable, n).
+    Batch an iterable in batches of size n (possibly except the last). If len(xs) is knowable use batch_seq instead.'''
+    from warnings import warn
+    warn('batch_iter() is deprecated from Python>=3.12 and will be removed in a future release.\nUse itertools.batched(iterable, n) instead.', DeprecationWarning, stacklevel=2)
     iterator = iter(xs)
     while batch := list(islice(iterator, n)): yield batch
 
@@ -341,5 +357,23 @@ def batch_seq_by_into(by: Callable[[_a], float], k: int, xs: Sequence[_a], keep_
                 batch.append(x)
                 count += weight
             if batch: yield batch
+
+def batch_by_group(by: Callable[[_a], Any], n: int, xs: Iterable[_a]) -> Generator[_a, None, None]:
+    '''Batch an iterable into batches of length <= n in which not two elements are from the same group as determined with by.
+    Note: the order of items in and across the batches is reversed from the original iterable;
+    might want to reverse it beforehand (or have a deque.popleft toggle?)'''
+    groups = defaultdict(list)
+    for x in xs: groups[by(x)].append(x)
+
+    while any(groups.values()):
+        batch = []
+        for grp in list(groups.keys()):  # casting to list makes it a copy, so not affected by .pop
+            if len(batch) >= n:
+                break
+            if groups[grp]:
+                batch.append(groups[grp].pop())
+            else:
+                del groups[grp]
+        yield batch
 
 

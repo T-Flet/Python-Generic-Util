@@ -69,7 +69,7 @@ ch = UnicodeCharSeq(1)
 chA = ch[::1] # Same as typeof(np.array(['a', '']))
 chA2 = ch[:, ::1] # Same as typeof(np.array([['a', ''],['','b']]))
 
-ch_NP = '<U1'
+ch_NP = np.dtype('<U1')
 chA_NP = cA2_NP = NDArray[ch_NP]
 
 def nTup(*args): return Tuple(args)

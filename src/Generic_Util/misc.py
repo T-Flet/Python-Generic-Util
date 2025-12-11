@@ -36,3 +36,11 @@ def min_max(xs: Sequence[_a]) -> tuple[_a, _a]:
     return min, max
 
 
+
+## Binary Functions
+
+def bin_array(n: int) -> list[int]:
+    '''Returns the binary representation of an integer as a list of binary values WITHOUT converting to string'''
+    return [(n >> i) & 1 for i in range(n.bit_length()-1, -1, -1)]
+
+

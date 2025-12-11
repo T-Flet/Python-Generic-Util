@@ -21,6 +21,16 @@ This package contains convenient functions not found in Python's Standard Librar
 It also contains a variety of convenience functions for the
 [numba](https://numba.pydata.org/) JIT compiler library.
 
+
+
+## Installation:
+
+```pip install generic-util```
+
+
+
+## Overview
+
 See the [documentation][rtd-link] for details, but functions are grouped as follows:
 - `Generic_Util.benchmarking`: functions covering typical code-timing scenarios,
     such as a "with" statement context, an n-executions timer,
